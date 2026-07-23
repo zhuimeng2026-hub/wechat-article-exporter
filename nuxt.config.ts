@@ -38,6 +38,9 @@ export default defineNuxtConfig({
   sourcemap: {
     client: 'hidden',
   },
+  // Chromium cannot run in Workers. Excluding this Node-only route also keeps
+  // Puppeteer (and its TypeScript-based configuration loader) out of the edge bundle.
+  ignore: process.env.NITRO_PRESET === 'cloudflare_module' ? ['server/api/web/pdf/generate.post.ts'] : [],
   nitro: {
     minify: process.env.NODE_ENV === 'production',
     // 开启 wasm 支持（unwasm）：cgi 沙箱 @cf-wasm/quickjs 以 import 方式引入 .wasm 模块，

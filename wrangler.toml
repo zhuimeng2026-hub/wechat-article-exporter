@@ -23,7 +23,7 @@ binding = "ASSETS"
 # 获取 id：`wrangler kv namespace list`，或从原 Pages 项目的 KV 绑定中查看。
 [[kv_namespaces]]
 binding = "KV"
-id = "86d7d0c828034d75bb7461ef348bdf68"
+id = "37420755409f44f080fd7ed2d3c1ea2d"
 
 # 限流绑定（Workers GA）。period 仅可为 10 或 60。改 limit 即调限额。
 # 查询类接口（搜索公众号 / 按链接搜索 / 文章列表，前 3 个）

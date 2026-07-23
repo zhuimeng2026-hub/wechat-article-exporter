@@ -40,6 +40,24 @@
 
 ## 稳定使用
 
+## Cloudflare Workers 免费计划部署
+
+本项目可以部署到 Cloudflare Workers 免费计划，但发布的 **Worker 脚本包** 必须小于 3 MiB。静态资源不计入这个限制；以 Wrangler 最终输出的 `Total Upload` 为准。当前配置的部署包约为 2.52 MiB。
+
+- PDF 导出依赖 Chromium/Puppeteer，Workers 运行时不支持。`NITRO_PRESET=cloudflare_module` 时会排除 `/api/web/pdf/generate` 路由；PDF 导出请使用 Docker 或普通 Node 部署。
+- 不要让 Puppeteer、Chromium、TypeScript 编译器等 Node 专用依赖进入任何 Workers 路由的运行时依赖图，否则会迅速超过 3 MiB 限制。
+- `wrangler.toml` 中的 KV 命名空间必须与线上 Worker 当前绑定一致。部署前可在 Cloudflare Worker 的 Settings > Bindings 中核对；不要复用已删除的 KV ID。
+- 推荐先构建、再部署，并检查 Wrangler 输出的包大小：
+
+  ```bash
+  NITRO_PRESET=cloudflare_module NITRO_KV_DRIVER=cloudflare-kv-binding npx nuxt build
+  npx wrangler@3.114.10 deploy
+  ```
+
+  在 Windows PowerShell 中，请先分别设置 `$env:NITRO_PRESET` 和 `$env:NITRO_KV_DRIVER`；不能直接使用上述 POSIX 环境变量写法。
+
+若 Worker 超出限额，优先检查 Wrangler 输出的 “largest dependencies”，从 Cloudflare 路由中排除不兼容的 Node 专用功能，而非直接升级计划。
+
 **不想每日抢代理额度，也不想折腾代理节点？更想要稳定、省心的开箱体验？**
 
 试试本项目的商业版 —— **[公号三刀](https://wechat.zoro.build)**
