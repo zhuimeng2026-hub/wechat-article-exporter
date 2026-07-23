@@ -1,5 +1,4 @@
 import { urlIsValidMpArticle } from '#shared/utils';
-import { normalizeHtml, parseCgiDataNew } from '#shared/utils/html';
 import { createTurndownService } from '#shared/utils/markdown';
 import { USER_AGENT } from '~/config';
 import { enforceRateLimit } from '~/server/utils/rate-limit';
@@ -97,29 +96,35 @@ export default defineEventHandler(async event => {
 
   switch (format) {
     case 'html':
-      return new Response(normalizeHtml(rawHtml, 'html'), {
+      // 免费计划的 Worker CPU 上限很低。Cheerio 对长文章进行完整 DOM 规范化会超过
+      // 上限并被 Cloudflare 以 503 终止，因此 HTML 格式直接透传微信原文。
+      // 需要清洗、提取正文的消费者应在自己的运行环境中处理 HTML。
+      return new Response(rawHtml, {
         status: 200,
         headers: {
           'Content-Type': 'text/html; charset=UTF-8',
         },
       });
     case 'text':
-      return new Response(normalizeHtml(rawHtml, 'text'), {
+      return new Response((await import('#shared/utils/html')).normalizeHtml(rawHtml, 'text'), {
         status: 200,
         headers: {
           'Content-Type': 'text/plain; charset=UTF-8',
         },
       });
     case 'markdown':
-      return new Response(createTurndownService().turndown(normalizeHtml(rawHtml, 'html')).trim(), {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/markdown; charset=UTF-8',
+      return new Response(
+        createTurndownService().turndown((await import('#shared/utils/html')).normalizeHtml(rawHtml, 'html')).trim(),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/markdown; charset=UTF-8',
+          },
         },
-      });
+      );
     case 'json': {
       // 用 QuickJS-WASM 沙箱在主 Worker 内执行 cgi 脚本，取回 window.cgiDataNew（node / CF workerd 通用）
-      return await parseCgiDataNew(rawHtml);
+      return await (await import('#shared/utils/html')).parseCgiDataNew(rawHtml);
     }
     default:
       throw new Error(`Unknown format ${format}`);

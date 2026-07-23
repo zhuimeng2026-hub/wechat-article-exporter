@@ -58,6 +58,24 @@
 
 若 Worker 超出限额，优先检查 Wrangler 输出的 “largest dependencies”，从 Cloudflare 路由中排除不兼容的 Node 专用功能，而非直接升级计划。
 
+### 长文章下载的 CPU 限制与处理方案
+
+Cloudflare Workers 免费计划还限制单次请求的 CPU 时间。长公众号文章若在 Worker 内使用 Cheerio 执行 `normalizeHtml`，可能被平台以 HTTP 503 中断；Workers Logs 会显示 `outcome: exceededCpu` 和 `Worker exceeded CPU time limit`，而不是微信上游错误。
+
+为避免该问题，`/api/public/v1/download?format=html` 直接透传微信原始 HTML，不在 Worker 中解析 DOM。需要正文或清洗 HTML 的批处理程序应在自己的运行环境中完成：
+
+- 使用 BeautifulSoup 选取 `#js_article` / `#js_content`；
+- 移除脚本、广告、二维码等非正文节点，并将图片 `data-src` 还原为 `src`；
+- 将清洗后的 HTML 保存，将提取的纯文本发送给 LLM。
+
+配套的 `babyplace/scripts/ingest_wechat_articles.py` 已按此方式实现。首次在其运行环境执行：
+
+```bash
+python -m pip install -r scripts/requirements.txt
+```
+
+`text`、`markdown` 和 `json` 格式仍会在 Worker 内执行解析，免费计划下不适合作为长文章批量处理通道。
+
 **不想每日抢代理额度，也不想折腾代理节点？更想要稳定、省心的开箱体验？**
 
 试试本项目的商业版 —— **[公号三刀](https://wechat.zoro.build)**
