@@ -57,13 +57,43 @@ export default defineEventHandler(async event => {
     });
   }
 
-  const rawHtml = await fetch(url, {
-    headers: {
-      Referer: 'https://mp.weixin.qq.com/',
-      Origin: 'https://mp.weixin.qq.com',
-      'User-Agent': USER_AGENT,
-    },
-  }).then(res => res.text());
+  let rawHtml: string;
+  try {
+    const upstream = await fetch(url, {
+      headers: {
+        Referer: 'https://mp.weixin.qq.com/',
+        Origin: 'https://mp.weixin.qq.com',
+        'User-Agent': USER_AGENT,
+      },
+    });
+    rawHtml = await upstream.text();
+
+    if (!upstream.ok) {
+      console.error('[download] WeChat upstream failed', {
+        articleUrl: url,
+        status: upstream.status,
+        statusText: upstream.statusText,
+        cfRay: upstream.headers.get('cf-ray'),
+        bodyPreview: rawHtml.slice(0, 500),
+      });
+      throw createError({
+        statusCode: 502,
+        statusMessage: `微信文章下载失败（上游 HTTP ${upstream.status}）`,
+      });
+    }
+  } catch (error) {
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      throw error;
+    }
+    console.error('[download] WeChat request exception', {
+      articleUrl: url,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw createError({
+      statusCode: 502,
+      statusMessage: '微信文章下载请求异常',
+    });
+  }
 
   switch (format) {
     case 'html':
